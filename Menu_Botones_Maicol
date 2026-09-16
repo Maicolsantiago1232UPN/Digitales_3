@@ -1,0 +1,132 @@
+#include <16f887.h> 
+#fuses HS,NOWDT,NOPROTECT,NOLVP // Cristal de alta velocidad, sin Watchdog, sin protección, sin LVP
+#use delay(clock=20000000) 
+
+#byte puerto_a = 5 
+#byte puerto_b = 6 
+#byte puerto_c = 7 
+#byte puerto_d = 8 
+#byte puerto_e = 9 
+
+int16 pausa = 200;
+int16 tiempo_parpadeo = 50; // Variable para que el boton RB3 haga parpadear 
+int16 opcion = 0;  // Variable para almacenar la opción activa (0 = Apagado/Bloqueado)
+int16 patron = 0x01, s, i; // Variables para la rotacion de boton Siguiente y Anterior
+
+int16 ubicacion_led = 0x01; // Ubicación actual del LED activo
+int16 encendido_inicial = 0; // Encender RD0 en el primer toque
+int16 sistema_habilitado = 0; // Activación por RB0
+int16 contador_tiempo = 0;  // Contador para el tiempo límite de 5 segundos
+
+#int_ext
+void interrupcion() {
+    opcion = 0;      // RB0 Apaga todo el sistema estableciendo la opción en 0
+    puerto_d = 0x00; // Fuerza el apagado inmediato del Puerto D
+    sistema_habilitado = 0; // Deshabilita el sistema al interrumpir 
+}
+
+void main()
+{
+   set_tris_b(0x1F); // RB0, RB1, RB2, RB3 y RB4 como entradas (0001 1111)
+   set_tris_d(0x00); // Puerto D (RD0-RD7) completo como salida
+   
+   puerto_b = 0x00;  // Limpia el registro del Puerto B
+   puerto_d = 0x00;  // Inicia con los LEDs apagados
+  
+   enable_interrupts(INT_EXT); // Necesario para que RB0 ejecute la interrupción
+   enable_interrupts(GLOBAL);  // Hace funcionar la interrupción
+   
+   while(TRUE) // Ciclo principal único
+   {
+      // REQUERIMIENTO 1: Bloqueo Inicial por RB0 con ventana de 5 segundos
+      if(sistema_habilitado == 0) {
+         puerto_d = 0x00;
+         
+         // Espera obligatoria hasta presionar RB0 para iniciar por primera vez o tras reset
+         if(input(pin_B0) == 0) {
+            while(input(pin_B0) == 0); // Antirrebote de RB0
+            delay_ms(10);
+            
+            ubicacion_led = 0x01;
+            encendido_inicial = 1; 
+            puerto_d = ubicacion_led; // Enciende físicamente RD0
+            opcion = 1;
+            contador_tiempo = 0;
+            // Ventana de 5000 ms (5 segundos) para presionar RB1 o RB2
+            while(contador_tiempo < 500) { // 500 x 10ms = 5000ms
+               if(input(pin_B1) == 0 || input(pin_B2) == 0) {
+                  sistema_habilitado = 1; // Se habilita el sistema si presiona dentro del tiempo
+                  break;
+               }
+               delay_ms(10);
+               contador_tiempo++;
+            }
+         }
+         continue; // Si no se habilitó el sistema, no procesa el resto del ciclo
+      }
+
+      // Lectura constante del botón de apagado RB0 durante ejecución normal
+      if(input(pin_B0) == 0) {
+         opcion = 0;
+         sistema_habilitado = 0; // Requiere presionar RB0 de nuevo para rearmar
+      }
+      
+      // REQUERIMIENTO 2: RB1 y RB2 solo funcionan si NO está parpadeando (opcion != 3)
+     
+      if(opcion != 3) {
+         if(input(pin_B1) == 0) {           // (Avanzar)
+            if(encendido_inicial == 0) {    // Si es el PRIMER toque
+               ubicacion_led = 0x01;        // Mantiene/fija el primer LED (RD0)
+               encendido_inicial = 1;       // Activa la bandera
+            }
+            else if(ubicacion_led < 0x80) { // Rota hasta llegar al límite 
+               rotate_left(&ubicacion_led, 1);
+            }
+            opcion = 1;
+            while(input(pin_B1) == 0);      // Espera a que suelte el botón
+            delay_ms(10);                  
+         }
+         
+         if(input(pin_B2) == 0) {           // Botón RB2: (Retroceder)
+            if(ubicacion_led > 0x01) {      // Si no ha llegado al límite (RD0)
+               rotate_right(&ubicacion_led, 1); // Rota solo al tocar el botón
+            }
+            opcion = 2;
+            while(input(pin_B2) == 0);      // Espera a que se suelte el botón  
+            delay_ms(10);                    
+         }
+      }
+      
+      // Botón RB3: Permite alternar la opción 3 (Parpadeo) en cualquier momento
+      if(input(pin_B3) == 0) {
+         if(opcion == 3) {
+            opcion = 1;                 // Si ya estaba en 3, detiene el parpadeo y deja el LED fijo
+         } else {
+            opcion = 3;                 // Si no estaba parpadeando, activa la opción 3
+         }
+         while(input(pin_B3) == 0);      // Espera a que se suelte el botón
+         delay_ms(10);                   
+      }
+
+      // Funcionamiento asignado para cada opción 
+      if(opcion == 0) {
+         puerto_d = 0x00; // Opción 0: Apagado general
+         ubicacion_led = 0x01; // Reinicia la posición al inicio
+         encendido_inicial = 0; // Reinicia la posición inicial
+      } 
+      
+      else if(opcion == 1 || opcion == 2) {
+         puerto_d = ubicacion_led; // Enciende el LED actual sin rotar
+      } 
+      
+      else if(opcion == 3) {
+         puerto_d = ubicacion_led; // Muestra la posición guardada
+         delay_ms(tiempo_parpadeo);
+         
+         puerto_d = 0x00;          // Apaga para generar el parpadeo
+         delay_ms(tiempo_parpadeo);
+      } 
+      
+   } // Cierre del while principal
+
+} // Cierre del main
