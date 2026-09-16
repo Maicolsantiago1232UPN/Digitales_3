@@ -1,0 +1,5 @@
+#include <16f887.h>
+#use delay(clock = 20000000)
+#fuses hs, NOWDT, NOLVP, NOPROTECT
+#byte puerto_b = 6
+#byte puerto_d = 8
