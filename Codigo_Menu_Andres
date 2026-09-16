@@ -1,0 +1,135 @@
+#include <16f887.h>
+#use delay(clock = 20000000)
+#fuses hs, NOWDT, NOLVP, NOPROTECT
+
+#byte puerto_b = 6
+#byte puerto_d = 8
+
+int modo = 0;
+int estado = 0; // Inicia apagado
+int16 tiempo = 180;
+
+void view(); // Prototipo de la función
+
+#int_ext 
+void ext_isr(void)
+{
+   modo = 1;        
+   estado = 0;       
+   puerto_d = 0x00;  // Apaga todos los LEDs inmediatamente
+}
+
+void view()
+{
+   if (estado==1)
+   {
+   puerto_d=(0x01);
+   }
+   else if (estado==2)
+   {
+   puerto_d=(0x02);
+   }
+   else if(estado==3)
+   {
+   puerto_d=(0x04);
+   }
+   else if(estado==4)
+   {
+   puerto_d=(0x08);
+   }
+   else if(estado==5)
+   {
+   puerto_d=(0x10);
+   }
+   else if(estado==6)
+   {
+   puerto_d=(0x20);
+   }
+   else if(estado==7)
+   {
+   puerto_d=(0x40);
+   }
+   else if(estado==8)
+   {
+   puerto_d=(0x80);
+   }
+}
+
+void blink()
+{
+   int inter=puerto_d;
+   delay_ms(tiempo);
+   puerto_d=(0x00);
+   delay_ms(tiempo);
+   puerto_d=inter;  
+}
+
+void main()
+{
+   enable_interrupts(int_ext); 
+   enable_interrupts(GLOBAL);
+
+   set_tris_b(0x0f); // RB0 a RB3 como entradas
+   set_tris_d(0x00); // Puerto D como salida
+   puerto_d = (0x00); // Estado inicial apagado
+
+   while(true)
+   {
+      while(modo == 1)
+      {
+         if(input(pin_B1) == 0)
+         {
+            while(input(pin_B1) == 0)
+            {
+            }
+            estado = estado + 1;
+            if(estado == 9) 
+            {
+               estado = 8;
+               modo = 1;
+            }
+            view();
+         }
+
+         // Botón RB2: Anterior
+         if(input(pin_B2) == 0)
+         {
+            while(input(pin_B2) == 0)
+            {
+            }
+            estado = estado - 1;
+            if(estado == 0)
+            {
+               estado = 1; 
+            }
+            view();
+         }
+
+         // Botón RB3: Alternar entre parpadeo (modo = 0) y fijo (modo = 1)
+         if(input(pin_B3) == 0)
+         {
+            while(input(pin_B3) == 0) 
+            {
+            }
+            modo = 0; // Cambia a modo parpadeo
+         }
+      }
+
+      while(modo == 0)
+      {
+         // Botón RB3 dentro del parpadeo para volver a modo fijo
+         if(input(pin_B3) == 0)
+         {
+            while(input(pin_B3) == 0) 
+            {
+            }
+            modo = 1; // Vuelve a modo fijo
+            view();   // Restaura el LED encendido
+         }
+         else
+         {
+            blink();
+         }
+      }
+   }   
+}
