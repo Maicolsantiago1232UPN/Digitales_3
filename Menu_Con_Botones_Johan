@@ -1,0 +1,139 @@
+#include <16F887.h> 
+#fuses HS, NOWDT, NOPROTECT, NOLVP
+#use delay(clock=20000000) 
+
+#byte puerto_a = 5 
+#byte puerto_b = 6 
+#byte puerto_c = 7 
+#byte puerto_d = 8 
+#byte puerto_e = 9 
+
+int modo = 0;
+int estado = 0;
+int16 tiempo = 10;
+int16 tiempo2 = 500;
+int titileo = 0;
+int8 ubicacion_led = 0x01; // Cambiado a int8 para coincidir con el puerto
+
+#int_ext
+void extisr(void)
+{
+   if(modo == 0)
+   {
+      modo = 1;
+      estado = 1;
+      puerto_d = 0x01;
+      ubicacion_led = puerto_d;
+   }
+   else
+   {
+      modo = 0;
+      puerto_d = 0x00;
+   }
+}
+
+void view()
+{
+   if(estado == 1)
+   {
+      puerto_d = 0x01;
+   }
+
+   if(estado == 8)
+   {
+      puerto_d = 0x80;
+   }
+}
+
+void blink()
+{
+   puerto_d = ubicacion_led;
+   delay_ms(tiempo2);
+
+   puerto_d = 0x00;
+   delay_ms(tiempo2);
+}
+
+void main()
+{
+   enable_interrupts(int_ext);
+   enable_interrupts(global);
+
+   set_tris_b(0x0F);
+   set_tris_d(0x00);
+   puerto_d = 0x00;
+
+   while(true)
+   {
+      while(modo == 1)
+      {
+         // Botón 1: Desplazar LED a la izquierda
+         if(input(pin_b1) == 0)
+         {
+            while(input(pin_b1) == 0); // Antirrebote/Espera soltar
+
+            estado = estado + 1;
+
+            if(estado > 7)
+            {
+               estado = 8;
+            }
+            else
+            {
+               ubicacion_led = (ubicacion_led << 1); // Rotación a la izquierda limpia
+               puerto_d = ubicacion_led;
+               delay_ms(tiempo);
+            }
+
+            view();
+         }
+
+         // Botón 2: Desplazar LED a la derecha
+         if(input(pin_b2) == 0)
+         {
+            while(input(pin_b2) == 0); // Antirrebote/Espera soltar
+
+            estado = estado - 1;
+
+            if(estado < 2)
+            {
+               estado = 1;
+            }
+            else
+            {
+               ubicacion_led = (ubicacion_led >> 1); // Rotación a la derecha limpia
+               puerto_d = ubicacion_led;
+               delay_ms(tiempo);
+            }
+
+            view();
+         }
+
+         // Botón 3: Activar / Desactivar titileo
+         if(input(pin_b3) == 0)
+         {
+            while(input(pin_b3) == 0);
+
+            if(titileo == 0)
+            {
+               titileo = 1;
+            }
+            else
+            {
+               titileo = 0;
+               puerto_d = ubicacion_led;
+            }
+         }
+
+         if(titileo == 1)
+         {
+            blink();
+         }
+      }
+
+      while(modo == 0)
+      {
+         // Espera pasiva mientras el sistema está apagado
+      }
+   }
+}
