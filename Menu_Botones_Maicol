@@ -77,7 +77,7 @@ void main()
          if(input(pin_B1) == 0) {           // (Avanzar)
             if(encendido_inicial == 0) {    // Si es el PRIMER toque
                ubicacion_led = 0x01;        // Mantiene/fija el primer LED (RD0)
-               encendido_inicial = 1;       // Activa la bandera
+               encendido_inicial = 1;       
             }
             else if(ubicacion_led < 0x80) { // Rota hasta llegar al límite 
                rotate_left(&ubicacion_led, 1);
