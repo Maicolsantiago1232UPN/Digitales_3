@@ -1,34 +1,56 @@
 #include <16f887.h>
-#fuses HS,NOWDT,NOPROTECT,NOLVP
+#fuses HS, NOWDT, NOPROTECT, NOLVP
 #use delay(clock=20000000)
-#byte puerto_a = 5
+
+// Asignación directa de registros de puertos
 #byte puerto_b = 6
-#byte puerto_c = 7
 #byte puerto_d = 8
-#byte puerto_e = 9
 
 void main()
 {
+   // 1. Desactivar entradas analógicas
    setup_adc_ports(NO_ANALOGS);
    setup_adc(ADC_OFF);
    setup_comparator(NC_NC_NC_NC);
 
-   // Configurar TODO el Puerto D como Salidas
-   set_tris_d(0xFF);
-   set_tris_b(0x00); 
+   // 2. Configuración de direcciones I/O
+   set_tris_d(0x0F); // 00001111b -> RD0, RD1, RD2 y RD3 como ENTRADAS (Sensores)
+   set_tris_b(0x00); // 00000000b -> RB0 a RB7 como SALIDAS (L298N)
+
+   puerto_b = 0x00;  // Estado inicial: Todos los motores apagados (0V)
 
    while(TRUE)
    {
-   if(input(PIN_D0)== 1 || input(PIN_D1) == 1 || input(PIN_D2) == 1 || input(PIN_D3) == 1)
-   {
-    puerto_b = 0xAA;
-    delay_ms(1000);
-   } //if_0
-   if(input(PIN_D0)== 0 || input(PIN_D1) == 0 || input(PIN_D2) == 0 || input(PIN_D3) == 0)
-   {
-    puerto_b = 0x00;
-    delay_ms(1000);
-   } //if_1
-   
-   } // while
-} // main
+      // -----------------------------------------------------------------------
+      // CONTROL INDEPENDIENTE DE MOTORES
+      // -----------------------------------------------------------------------
+
+      // Sensor RD0 -> Solo activa Motor 1 (RB0=1, RB1=0)
+      if(input(PIN_D0) == 1 && input(PIN_D1) == 1 && input(PIN_D2) == 1 && input(PIN_D3) == 1)
+      {
+         puerto_b = 0xaa; // 00000001b
+      }
+      // Sensor RD1 -> Solo activa Motor 2 (RB2=1, RB3=0)
+      else if(input(PIN_D1) == 1 && input(PIN_D0) == 0 && input(PIN_D2) == 0 && input(PIN_D3) == 0)
+      {
+         puerto_b = 0x04; // 00000100b
+      }
+      // Sensor RD2 -> Solo activa Motor 3 (RB4=1, RB5=0)
+      else if(input(PIN_D2) == 1 && input(PIN_D0) == 0 && input(PIN_D1) == 0 && input(PIN_D3) == 0)
+      {
+         puerto_b = 0x10; // 00010000b
+      }
+      // Sensor RD3 -> Solo activa Motor 4 (RB6=1, RB7=0)
+      else if(input(PIN_D3) == 1 && input(PIN_D0) == 0 && input(PIN_D1) == 0 && input(PIN_D2) == 0)
+      {
+         puerto_b = 0x40; // 01000000b
+      }
+      // Ningún sensor activado -> Todos los motores apagados (0V)
+      else
+      {
+         puerto_b = 0x00; // 00000000b
+      }
+
+      delay_ms(10); // Estabilización de lectura
+   }
+}
