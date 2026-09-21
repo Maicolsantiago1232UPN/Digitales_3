@@ -1,89 +1,34 @@
-#include <16F887.h>
-#fuses HS, NOWDT, NOPROTECT, NOLVP
+#include <16f887.h>
+#fuses HS,NOWDT,NOPROTECT,NOLVP
 #use delay(clock=20000000)
+#byte puerto_a = 5
+#byte puerto_b = 6
+#byte puerto_c = 7
+#byte puerto_d = 8
+#byte puerto_e = 9
 
-#byte puerto_a= 5
-#byte puerto_b= 6
-#byte puerto_c= 7
-#byte puerto_d= 8
-#byte puerto_e= 9
+void main()
+{
+   setup_adc_ports(NO_ANALOGS);
+   setup_adc(ADC_OFF);
+   setup_comparator(NC_NC_NC_NC);
 
-int16  tiempo1 = 500;
+   // Configurar TODO el Puerto D como Salidas
+   set_tris_d(0xFF);
+   set_tris_b(0x00); 
 
-Void Main()
-{
-set_tris_a(0x01);
-set_tris_b(0x00);
-set_tris_d(0x0f);
-If((pin_A0)==1)//foto resistencia con laser
-{
-puerto_b=(0x00);//detenido
-}
-If((pin_A0)==0)//foto resistencia sin laser
-{
-//Parte de sensar los aires
-puerto_b=(0x55);//para adelante
-Delay_ms(tiempo1);
-If((pin_d0)==0)//sensor de adelante al aire
-{
-puerto_b=(0x00);//detenido 
-Delay_ms(tiempo1);
-puerto_b=(0xaa);//para atrás 
-Delay_ms(tiempo1);
-puerto_b=(0x99);//para la izquierda creo
-Delay_ms(tiempo1);
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-}
-If((pin_d1)==0)//sensor de atras al aire
-{
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-puerto_b=(0x55);//para adelante 
-Delay_ms(tiempo1);
-puerto_b=(0x66);//para derecha creo 
-Delay_ms(tiempo1);
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-}
-If((pin_d2)==0)//sensor de izquierda al aire
-{
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-puerto_b=(0x99);//para derecha creo 
-Delay_ms(tiempo1);
-puerto_b=(0xaa);//para atras
-Delay_ms(tiempo1);
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-}
-If((pin_d3)==0)//sensor de derecha al aire
-{
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-puerto_b=(0x99);//para izquierda creo 
-Delay_ms(tiempo1);
-puerto_b=(0x55);//para adelante 
-Delay_ms(tiempo1);
-puerto_b=(0x00);//detenido
-Delay_ms(tiempo1);
-}
-//Parte de cuando está en la mesa los sensores 
-If((pin_d0)==1)
-{
-
-}
-If((pin_d1)==1)
-{
-
-}
-If((pin_d2)==1)
-{
-
-}
-If((pin_d3)==1)
-{
-
-}
-}//Foto resistencia 
-}//Main
+   while(TRUE)
+   {
+   if(input(PIN_D0)== 1 || input(PIN_D1) == 1 || input(PIN_D2) == 1 || input(PIN_D3) == 1)
+   {
+    puerto_b = 0xAA;
+    delay_ms(1000);
+   } //if_0
+   if(input(PIN_D0)== 0 || input(PIN_D1) == 0 || input(PIN_D2) == 0 || input(PIN_D3) == 0)
+   {
+    puerto_b = 0x00;
+    delay_ms(1000);
+   } //if_1
+   
+   } // while
+} // main
